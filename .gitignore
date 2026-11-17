@@ -69,7 +69,7 @@ htmlcov/
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# .python-version is committed so Render uses Python 3.13
 
 # Celery
 celerybeat-schedule

@@ -2,6 +2,9 @@
 # Union Budget RAG - Python Dependencies
 # ===========================================
 
+# Use published wheels. Render has no FFmpeg headers, so compiling av fails.
+--only-binary=av,PyMuPDF,psycopg2-binary,bcrypt,numpy,grpcio,pydantic-core,simsimd
+
 # Flask web framework
 flask>=3.0.0
 flask-cors>=4.0.0
@@ -17,20 +20,18 @@ langchain-text-splitters>=0.3.0
 
 # LangChain integrations
 # langchain-huggingface>=0.1.0  # Not needed - using Inference API instead
-langchain-pinecone>=0.2.0
+# 0.2.x supports Python 3.13 and not 3.14
+langchain-pinecone>=0.2.13,<0.3
 langchain-google-genai>=2.0.0
 
 # Pinecone vector database
 pinecone-client>=3.0.0
 
-# Google Generative AI (Gemini)
-google-generativeai>=0.8.0
-
 # Embeddings - using Cohere API (free tier, lightweight, no local models)
 requests>=2.31.0  # For Cohere API calls (already used elsewhere)
 
-# PDF processing
-PyMuPDF>=1.23.0
+# PDF processing. Stay on 1.x; 2.x pulls onnxruntime and is not needed for text extraction.
+PyMuPDF>=1.26.7,<2
 
 # Database (PostgreSQL/Neon)
 sqlalchemy>=2.0.0
