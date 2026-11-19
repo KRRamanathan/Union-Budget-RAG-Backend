@@ -17,7 +17,7 @@ class Config:
 
     # Pinecone Configuration
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-    PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "union-budget-rag")
+    PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "hcl-tech")
 
     # LLM Configuration (Gemini)
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")

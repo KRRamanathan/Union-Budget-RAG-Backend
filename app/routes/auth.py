@@ -108,9 +108,9 @@ def login():
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
-    # Find user
-    db = get_db_session()
+    db = None
     try:
+        db = get_db_session()
         user = db.query(User).filter(User.email == email.lower().strip()).first()
 
         if not user:
@@ -133,9 +133,10 @@ def login():
 
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
-        return jsonify({"error": "Login failed"}), 500
+        return jsonify({"error": f"Login failed: {e}"}), 500
     finally:
-        db.close()
+        if db is not None:
+            db.close()
 
 
 @auth_bp.route('/me', methods=['GET'])

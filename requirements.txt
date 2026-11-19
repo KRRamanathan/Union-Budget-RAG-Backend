@@ -20,8 +20,6 @@ langchain-text-splitters>=0.3.0
 
 # LangChain integrations
 # langchain-huggingface>=0.1.0  # Not needed - using Inference API instead
-# 0.2.x supports Python 3.13 and not 3.14
-langchain-pinecone>=0.2.13,<0.3
 langchain-google-genai>=2.0.0
 
 # Pinecone vector database

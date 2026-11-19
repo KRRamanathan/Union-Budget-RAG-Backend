@@ -57,6 +57,16 @@ def create_app() -> Flask:
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(chats_bp, url_prefix='/api/chats')
     
+    from werkzeug.exceptions import HTTPException
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(err):
+        if isinstance(err, HTTPException):
+            return err
+        logger.exception("Unhandled API error")
+        from flask import jsonify
+        return jsonify({"error": str(err)}), 500
+
     logger.info("Flask application created with all routes registered")
     return app
 

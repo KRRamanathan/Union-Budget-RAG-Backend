@@ -5,8 +5,7 @@ Uses latest Pinecone SDK (v3+) - no environment parameter needed.
 """
 import logging
 import time
-from typing import List, Dict, Optional
-from langchain_pinecone import PineconeVectorStore
+from typing import List, Dict, Optional, Any
 from langchain_core.documents import Document
 from pinecone import Pinecone, ServerlessSpec
 from app.config import Config
@@ -16,7 +15,65 @@ logger = logging.getLogger(__name__)
 
 # Global instances
 _client: Optional[Pinecone] = None
-_vector_store: Optional[PineconeVectorStore] = None
+_vector_store: Optional["PineconeStore"] = None
+
+
+class _Retriever:
+    """Small retriever so chat can call invoke() without langchain-pinecone."""
+
+    def __init__(self, store: "PineconeStore", k: int):
+        self.store = store
+        self.k = k
+
+    def invoke(self, query: str) -> List[Document]:
+        return self.store.similarity_search(query, k=self.k)
+
+
+class PineconeStore:
+    """Pinecone vector store that runs on Python 3.14."""
+
+    def __init__(self, index: Any, embeddings: Any):
+        self.index = index
+        self.embeddings = embeddings
+
+    def similarity_search(self, query: str, k: int = 4) -> List[Document]:
+        vector = self.embeddings.embed_query(query)
+        result = self.index.query(vector=vector, top_k=k, include_metadata=True)
+        matches = getattr(result, "matches", None)
+        if matches is None and isinstance(result, dict):
+            matches = result.get("matches", [])
+        documents = []
+        for match in matches or []:
+            raw = getattr(match, "metadata", None)
+            if raw is None and isinstance(match, dict):
+                raw = match.get("metadata")
+            metadata = dict(raw or {})
+            text = metadata.pop("text", "") or ""
+            documents.append(Document(page_content=text, metadata=metadata))
+        return documents
+
+    def add_documents(self, documents: List[Document], ids: Optional[List[str]] = None) -> List[str]:
+        vectors = self.embeddings.embed_documents([doc.page_content for doc in documents])
+        payload = []
+        saved_ids = []
+        for i, (doc, vector) in enumerate(zip(documents, vectors)):
+            metadata = {}
+            for key, value in doc.metadata.items():
+                if isinstance(value, (str, int, float, bool)):
+                    metadata[key] = value
+                elif value is not None:
+                    metadata[key] = str(value)
+            metadata["text"] = doc.page_content
+            vector_id = ids[i] if ids else f"doc_{i}"
+            saved_ids.append(vector_id)
+            payload.append({"id": vector_id, "values": vector, "metadata": metadata})
+        if payload:
+            self.index.upsert(vectors=payload)
+        return saved_ids
+
+    def as_retriever(self, search_type: str = "similarity", search_kwargs: Optional[Dict] = None) -> _Retriever:
+        k = (search_kwargs or {}).get("k", 4)
+        return _Retriever(self, k)
 
 
 def get_pinecone_client() -> Pinecone:
@@ -37,7 +94,7 @@ def get_pinecone_client() -> Pinecone:
     return _client
 
 
-def get_vector_store() -> PineconeVectorStore:
+def get_vector_store() -> PineconeStore:
     """
     Get or create the LangChain Pinecone vector store.
 
@@ -53,10 +110,9 @@ def get_vector_store() -> PineconeVectorStore:
         ensure_index_exists()
 
         embeddings = get_embeddings()
-        _vector_store = PineconeVectorStore(
-            index_name=Config.PINECONE_INDEX_NAME,
-            embedding=embeddings,
-            pinecone_api_key=Config.PINECONE_API_KEY
+        _vector_store = PineconeStore(
+            index=get_pinecone_client().Index(Config.PINECONE_INDEX_NAME),
+            embeddings=embeddings,
         )
         logger.info("Connected to Pinecone vector store")
 
